@@ -1,0 +1,52 @@
+name: Continuos Integration with Github Actions
+
+on:
+  push:
+    branches:
+      - main # caso queira mais de uma branch, basta adicionar abaixo. ex: - main2
+      
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps: # cada action aqui dos steps é um scritp que será executado
+    # Para fazer o checkout do código
+    # caso a v3 não funcione, use a v2
+    - uses: actions/checkout@v3 
+
+    # Para se autenticar(fazer login) no Docker hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3.0.0
+      with:
+        # Username used to log against the Docker registry
+        username: ${{ secrets.DOCKER_USERNAME }} # secret que configuramos para o username
+        # Password or personal access token used to log against the Docker registry
+        password: ${{ secrets.DOCKER_PASSWORD }} # secret que configuramos para o password
+          
+
+    # Para setar o java
+    # caso a v3 não funcione, use a v2
+    - name: Set up JDK 18
+      uses: actions/setup-java@v3
+      with:
+        java-version: '18'
+        distribution: 'adopt'
+        cache: maven
+
+    # Para fazer o build do jar do projeto
+    - name: Build Application JAR
+      working-directory: ./22_Docker/rest-with-spring-boot-and-java # para dizer onde o maven irá executar o build (onde está o arquivo pom.xml da applicação)
+      run: mvn clean package # comando maven para buildar a aplicação
+
+    # Docker compose
+    - name: Docker Compose Build
+      working-directory: ./22_Docker # para dizer onde irá executar o docker compose (onde está o arquivo docker-compose.yaml da applicação)
+      run: docker compose build # comando para executar o docker compose
+
+    # Para fazer o push e enviar as Docker Images para o Docker Hub
+    - name: Push to Docker Hub Container Registry
+      run: | # pipe (|) para permitir executar vários comandos
+         docker tag ${{ secrets.DOCKER_USERNAME }}/rest-with-spring-boot:latest ${{ secrets.DOCKER_USERNAME }}/rest-with-spring-boot:${{ github.run_id }}
+         docker push ${{ secrets.DOCKER_USERNAME }}/rest-with-spring-boot:${{ github.run_id }}
+         docker push ${{ secrets.DOCKER_USERNAME }}/rest-with-spring-boot:latest
+        
